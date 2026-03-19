@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>카페 키오스크 주문 튜토리얼</title>
+<style>
+  :root {
+    --bg-color: #333333;
+    --screen-bg: #ffffff;
+    --primary: #d32f2f;
+    --accent: #FF4E3E;
+  }
+  
+  body {
+    margin: 0; padding: 0; background-color: #1a1a1a; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Pretendard', sans-serif;
+  }
+
+  .app-container { width: 800px; height: 1280px; background-color: #e0e0e0; position: relative; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+
+  .app-header {
+    width: 100%; height: 120px; background-color: #ffffff; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; box-sizing: border-box; z-index: 500; box-shadow: 0 4px 15px rgba(0,0,0,0.08); position: absolute; top: 0; left: 0; gap: 20px;
+  }
+
+  .btn-stop {
+    flex-shrink: 0; background: #333; color: white; border: none; padding: 16px 26px; font-size: 22px; font-weight: 800; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: background 0.2s;
+  }
+  .btn-stop:active { background: #111; }
+
+  .btn-sound {
+    flex-shrink: 0; width: 64px; height: 64px; background: #737373; color: white; border: none; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: background 0.2s;
+  }
+
+  .guide-area { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-start; }
+  .guide-text { font-size: 30px; font-weight: 800; color: #222; text-align: left; white-space: pre-wrap; word-break: keep-all; line-height: 1.4; margin: 0; }
+
+  .kiosk-wrapper { flex: 1; margin-top: 120px; display: flex; justify-content: center; align-items: center; position: relative; }
+  .kiosk-viewport { width: 720px; height: 1060px; position: relative; transition: transform 1.2s cubic-bezier(0.25, 1, 0.4, 1); transform-origin: center center; }
+  .zoom-in { transform: scale(1.15) translateY(-5%); }
+  .zoom-out { transform: scale(1) translateY(0); }
+
+  /* Kiosk Machine & Screen */
+  .kiosk-machine {
+    width: 100%; height: 100%; background: linear-gradient(145deg, #3a3a3a, #202020); border-radius: 30px; box-shadow: 0 40px 80px rgba(0,0,0,0.6), inset 0 2px 10px rgba(255,255,255,0.15); display: flex; flex-direction: column; align-items: center; padding: 40px 30px 30px; box-sizing: border-box; border: 3px solid #555; position: relative; overflow: hidden;
+  }
+  .kiosk-machine::before { content: ''; position: absolute; top: 15px; width: 80px; height: 12px; background: #111; border-radius: 6px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.8); }
+
+  .kiosk-screen {
+    width: 660px; height: 750px; background-color: var(--screen-bg); border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 0 30px rgba(255,255,255,0.05), inset 0 0 5px rgba(0,0,0,0.1); display: flex; flex-direction: column;
+  }
+  
+  #target-screen-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 160px; pointer-events: none; z-index: 10; }
+  .touch-ripple { width: 100%; height: 100%; border-radius: 50%; background: rgba(255, 78, 62, 0.4); animation: ripple 2s infinite ease-out; }
+  @keyframes ripple { 0% { transform: scale(0.6); opacity: 1; }  100% { transform: scale(1.4); opacity: 0; } }
+
+  .screen-header { background: #f8f8f8; padding: 24px; text-align: center; border-bottom: 2px solid #e0e0e0; font-weight: 800; font-size: 32px; color: #222; }
+  .screen-body { display: flex; flex: 1; overflow: hidden; }
+  .category-list { width: 140px; background: #f4f4f4; display: flex; flex-direction: column; border-right: 2px solid #e0e0e0; }
+  .category-item { padding: 30px 10px; text-align: center; font-size: 24px; font-weight: bold; border-bottom: 1px solid #e0e0e0; color: #555; cursor: pointer; }
+  .category-item.active { background: var(--primary); color: white; }
+  
+  .menu-list { flex: 1; padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-content: start; overflow-y: auto; background: white; }
+  .menu-item { background: white; border: 2px solid #ececec; border-radius: 20px; padding: 20px 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.03); cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+  
+  .menu-img { 
+    width: 150px; height: 130px; border-radius: 12px; 
+    background-size: cover; background-position: center; background-repeat: no-repeat;
+    margin-bottom: 15px; background-color: #f0f0f0; 
+  }
+
+  .menu-name { font-size: 22px; font-weight: 800; margin-bottom: 8px; color: #333; }
+  .menu-price { font-size: 24px; color: var(--primary); font-weight: 800; }
+  
+  .screen-footer { height: 110px; background: white; box-shadow: 0 -4px 20px rgba(0,0,0,0.06); display: flex; align-items: center; padding: 0 30px; box-sizing: border-box; justify-content: space-between; z-index: 5; border-top: 1px solid #eaeaea; }
+  .total-price { font-size: 28px; font-weight: bold; color: #333; }
+  .total-price span { color: var(--primary); font-size: 38px; margin-left: 8px; }
+  .pay-btn { background: var(--primary); color: white; border: none; padding: 18px 36px; border-radius: 40px; font-weight: 800; font-size: 28px; cursor: pointer; }
+
+  /* 옵션 팝업 */
+  .popup-backdrop { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 50; display: none; justify-content: center; align-items: center; }
+  .popup-content { background: white; width: 560px; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+  .popup-header-bar { background: #333; color: white; padding: 20px; font-size: 28px; font-weight: bold; text-align: center; }
+  .popup-body { padding: 30px; background: #fafafa; }
+  .opt-section { margin-bottom: 25px; }
+  .opt-title { font-size: 22px; font-weight: bold; margin-bottom: 12px; color: #444; }
+  .opt-buttons { display: flex; gap: 15px; }
+  .opt-btn { flex: 1; padding: 15px 0; border: 2px solid #ddd; border-radius: 10px; background: white; font-size: 20px; font-weight: 600; color: #555; }
+  .opt-btn.active { border-color: var(--primary); color: var(--primary); background: #ffeeee; }
+  .popup-confirm-wrap { padding: 20px; background: white; border-top: 1px solid #eee; }
+  .popup-confirm { width: 100%; padding: 20px; background: var(--primary); color: white; font-size: 28px; font-weight: 800; border: none; border-radius: 12px; }
+
+  /* 결제 모드 오버레이 스크린 (바코드/카드 안내) */
+  .payment-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: #ffffff; z-index: 60;
+    display: none; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center; opacity: 0; transition: opacity 0.5s;
+  }
+  .payment-icon { margin-bottom: 40px; display: flex; justify-content: center; align-items: center; }
+  .payment-text { font-size: 38px; font-weight: 900; line-height: 1.4; color: #333; }
+  .payment-text span { color: var(--primary); }
+
+  /* 하드웨어 */
+  .kiosk-hardware { width: 100%; flex: 1; display: flex; justify-content: space-between; align-items: flex-end; padding: 40px 20px 20px; box-sizing: border-box; }
+  .slot-container { text-align: center; color: #999; font-size: 20px; font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; }
+  .slot-container span { margin-top: 15px; text-shadow: 0 1px 2px rgba(0,0,0,0.9); }
+  
+  .receipt-slot { width: 160px; height: 10px; background: #0a0a0a; border-radius: 5px; box-shadow: inset 0 3px 6px rgba(0,0,0,0.9); position: relative; display: flex; justify-content: center; }
+  .receipt-paper { position: absolute; top: 10px; width: 120px; height: 140px; background: #fff; transform-origin: top; transform: scaleY(0); transition: transform 1.2s cubic-bezier(0.1, 0.8, 0.3, 1); border-bottom: 3px dashed #ccc; z-index: 10; }
+  #target-receipt, #target-barcode, #target-card { padding: 15px; margin-bottom: 10px; }
+  
+  .barcode-reader { width: 90px; height: 60px; background: #151515; border-radius: 12px; border: 3px solid #2a2a2a; z-index: 2; position: relative; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+  .laser { width: 80%; height: 3px; background: rgba(255, 0, 0, 0.85); animation: scan 2s infinite alternate ease-in-out; }
+  @keyframes scan { 0% { transform: translateY(-12px); } 100% { transform: translateY(12px); } }
+  .anim-phone { position: absolute; left: 50%; top: 80px; transform: translateX(-50%); font-size: 80px; z-index: 3; opacity: 0; pointer-events: none; }
+  .anim-play-phone { animation: scanPhone 2s forwards; }
+  @keyframes scanPhone { 0% { top: 90px; opacity: 0; transform: translateX(-50%) rotate(25deg); } 30% { top: -10px; opacity: 1; transform: translateX(-50%) rotate(10deg); } 50% { top: -20px; opacity: 1; transform: translateX(-50%) rotate(0deg) scale(1.1); } 80% { top: -20px; opacity: 1; transform: translateX(-50%) rotate(0deg) scale(1.1); } 100% { top: 70px; opacity: 0; transform: translateX(-50%) rotate(25deg); } }
+
+  /* 카드가 가로로 들어가도록 변경된 슬롯 */
+  .card-slot-wrap { width: 150px; height: 60px; background: #1a1a1a; border-radius: 12px; border: 2px solid #333; z-index: 2; display: flex; justify-content: center; align-items: center; }
+  .card-slot { width: 100px; height: 10px; background: #000; border-radius: 5px; box-shadow: inset 0 3px 8px rgba(0,0,0,1); }
+  /* 삽입 애니메이션에 맞춰 비율 조정 (가로폭이 카드폭과 거의 일치하도록) */
+  .anim-card { position: absolute; left: 50%; top: 50%; margin-left: -35px; margin-top: -55px; width: 70px; height: 110px; background: linear-gradient(135deg, #e0e0e0, #eeeeee); border-radius: 8px; border: 2px solid #555; z-index: 10; opacity: 0; display: flex; justify-content: flex-end; align-items: flex-end; padding: 10px; box-sizing: border-box; }
+  .anim-card::after { content: "💳"; font-size: 26px; }
+  .anim-play-card { animation: insertCard 2s cubic-bezier(0.25, 1, 0.4, 1) forwards; }
+  @keyframes insertCard { 0% { transform: translateY(80px) scale(1); opacity: 0; } 20% { transform: translateY(10px) scale(1); opacity: 1; } 40% { transform: translateY(10px) scale(1); opacity: 1; }  70% { transform: translateY(10px) scale(0.3); opacity: 0.8; } 100% { transform: translateY(10px) scale(0); opacity: 0; } }
+
+  .spotlight-ring { position: absolute; box-sizing: content-box; border: 6px solid var(--accent); box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3), inset 0 0 20px rgba(255, 78, 62, 0.2); pointer-events: none; z-index: 200; transition: all 0.6s cubic-bezier(0.25, 1, 0.4, 1), opacity 0.4s ease; opacity: 0; }
+  .spotlight-ring.active { opacity: 1; }
+
+  .start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; justify-content: center; align-items: center; z-index: 1000; color: white; flex-direction: column; text-align: center; }
+  .start-screen h1 { font-size: 48px; margin-bottom: 20px; }
+  .start-screen p { font-size: 26px; color: #ccc; margin-bottom: 50px; }
+  .start-btn { padding: 24px 60px; font-size: 32px; font-weight: 800; background: var(--primary); color: white; border: none; border-radius: 50px; cursor: pointer; }
+
+  .click-interceptor { position: absolute; top: 120px; left: 0; width: 100%; height: calc(100% - 120px); z-index: 400; cursor: pointer; display: none; }
+
+  .success-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; opacity: 0; transition: opacity 0.6s; text-align: center; overflow: hidden; }
+  .success-screen h1 { font-size: 50px; color: var(--primary); margin-bottom: 20px; font-weight: 900; }
+  .success-screen p { font-size: 34px; font-weight: bold; color: #333; margin-bottom: 60px; }
+  .confetti { position: absolute; width: 15px; height: 15px; background: red; top: -20px; animation: fall 4s linear infinite; z-index: -1; border-radius: 2px; }
+  @keyframes fall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(1400px) rotate(720deg); opacity: 0; } }
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  
+  <div class="app-header">
+    <button class="btn-stop" onclick="location.reload()">그만하기</button>
+    <div class="guide-area">
+      <div class="guide-text" id="guideText">음성 안내 튜토리얼에 오신 것을 환영합니다!</div>
+    </div>
+    <button class="btn-sound" id="btnSound">
+      <svg id="iconSoundOn" viewBox="0 0 24 24" width="30" height="30" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+      <svg id="iconSoundOff" style="display:none;" viewBox="0 0 24 24" width="30" height="30" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+    </button>
+  </div>
+
+  <div class="start-screen" id="startScreen">
+    <h1>음성 안내 키오스크 튜토리얼</h1>
+    <p>화면에 뜨는 스팟라이트 영역을 터치하며 주문 방법을 배워보세요.</p>
+    <button class="start-btn" id="startTutorialBtn">튜토리얼 시작</button>
+  </div>
+
+  <div class="success-screen" id="successScreen">
+    <h1>🎉 정말 잘하셨어요! 🎉</h1>
+    <p>햄버거 주문에 성공했어요!</p>
+    <button class="start-btn" onclick="location.reload()">처음으로 돌아가기</button>
+  </div>
+
+  <div class="kiosk-wrapper">
+    <div class="kiosk-viewport" id="viewport">
+      <div class="kiosk-machine zoom-out" id="machine">
+        
+        <div class="kiosk-screen" id="kioskScreen">
+          <div id="target-screen-center"><div class="touch-ripple"></div></div>
+          
+          <!-- 결제/스캔 모드 전환용 흰 화면 오버레이 -->
+          <div class="payment-overlay" id="paymentOverlay">
+            <div class="payment-icon" id="paymentIcon"></div>
+            <div class="payment-text" id="paymentText">결제 진행 중</div>
+          </div>
+
+          <div class="screen-header">패스트푸드 메인화면</div>
+          
+          <div class="popup-backdrop" id="optionPopup">
+            <div class="popup-content">
+              <div class="popup-header-bar">옵션 선택</div>
+              <div class="popup-body">
+                <div class="opt-section">
+                  <div class="opt-title">세트 선택</div>
+                  <div class="opt-buttons">
+                    <button class="opt-btn">단품</button>
+                    <button class="opt-btn active" id="target-opt-set">세트</button>
+                  </div>
+                </div>
+                <div class="opt-section">
+                  <div class="opt-title">음료 선택</div>
+                  <div class="opt-buttons"><button class="opt-btn active">콜라</button><button class="opt-btn">사이다</button><button class="opt-btn">주스</button></div>
+                </div>
+                <div class="opt-section">
+                  <div class="opt-title">사이드 메뉴</div>
+                  <div class="opt-buttons"><button class="opt-btn active">감자튀김</button><button class="opt-btn">치킨너겟</button><button class="opt-btn">치즈스틱</button></div>
+                </div>
+              </div>
+              <div class="popup-confirm-wrap">
+                <button class="popup-confirm" id="target-opt-confirm">확인</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="screen-body">
+            <div class="category-list">
+              <div class="category-item">추천메뉴</div><div class="category-item active">버거</div><div class="category-item">치킨</div><div class="category-item">사이드</div><div class="category-item">음료</div>
+            </div>
+            
+            <div class="menu-list">
+              <div class="menu-item" id="target-burger"><div class="menu-img" style="background-image: url('https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=300&q=80');"></div><div class="menu-name">더블패티버거</div><div class="menu-price">7,700</div></div>
+              <div class="menu-item"><div class="menu-img" style="background-image: url('https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=300&q=80');"></div><div class="menu-name">불고기버거</div><div class="menu-price">5,900</div></div>
+              <div class="menu-item"><div class="menu-img" style="background-image: url('https://images.unsplash.com/photo-1594212691516-72439a1a8c2f?auto=format&fit=crop&w=300&q=80');"></div><div class="menu-name">베이컨버거</div><div class="menu-price">5,700</div></div>
+              <div class="menu-item"><div class="menu-img" style="background-image: url('https://images.unsplash.com/photo-1586190848861-99aa4a171e90?auto=format&fit=crop&w=300&q=80');"></div><div class="menu-name">더블치즈버거</div><div class="menu-price">6,700</div></div>
+              <div class="menu-item"><div class="menu-img" style="background-image: url('https://images.unsplash.com/photo-1625813506062-0aeb1d7a094b?auto=format&fit=crop&w=300&q=80');"></div><div class="menu-name">치킨버거</div><div class="menu-price">5,500</div></div>
+              <div class="menu-item"><div class="menu-img" style="background-image: url('https://images.unsplash.com/photo-1572802419224-296b0aeee0d9?auto=format&fit=crop&w=300&q=80');"></div><div class="menu-name">새우버거</div><div class="menu-price">4,700</div></div>
+            </div>
+          </div>
+          <div class="screen-footer">
+            <div class="total-price">총 결제금액 <span id="totalPrice">0</span>원</div>
+            <button class="pay-btn" id="target-pay-btn">결제하기</button>
+          </div>
+        </div>
+
+        <div class="kiosk-hardware">
+          <div class="slot-container" id="target-receipt"><div class="receipt-slot"><div class="receipt-paper" id="receiptPaper"></div></div><span>영수증 나오는 곳</span></div>
+          <div class="slot-container" id="target-barcode">
+            <div style="position:relative; overflow:visible;">
+              <div class="barcode-reader" style="position:relative; z-index:2;"><div class="laser"></div></div>
+              <div class="anim-phone" id="animPhone">📱</div>
+            </div><span>바코드 스캐너</span>
+          </div>
+          <div class="slot-container" id="target-card">
+            <div style="position:relative; overflow:visible;">
+              <div class="anim-card" id="animCard"></div>
+              <div class="card-slot-wrap" style="position:relative; z-index:2; background:#1a1a1a;"><div class="card-slot"></div></div>
+            </div><span>신용카드 투입구</span>
+          </div>
+        </div>
+        
+        <div class="spotlight-ring" id="spotlightRing"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="click-interceptor" id="clickInterceptor"></div>
+
+</div>
+
+<script>
+  let currentStep = -1;
+  let synth = window.speechSynthesis;
+  let isSoundOn = true;
+
+  const viewport = document.getElementById('viewport');
+  const ring = document.getElementById('spotlightRing');
+  const interceptor = document.getElementById('clickInterceptor');
+  const guideText = document.getElementById('guideText');
+  const machine = document.getElementById('machine');
+  
+  const iconOn = document.getElementById('iconSoundOn');
+  const iconOff = document.getElementById('iconSoundOff');
+
+  document.getElementById('btnSound').addEventListener('click', () => {
+    isSoundOn = !isSoundOn;
+    iconOn.style.display = isSoundOn ? 'block' : 'none';
+    iconOff.style.display = isSoundOn ? 'none' : 'block';
+    if (!isSoundOn && synth) synth.cancel();
+  });
+
+  const svgBarcode = `<svg width="180" height="120" viewBox="0 0 140 100" fill="#333" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="8" height="100"/><rect x="14" y="0" width="4" height="100"/><rect x="22" y="0" width="12" height="100"/><rect x="44" y="0" width="6" height="100"/><rect x="58" y="0" width="16" height="100"/><rect x="84" y="0" width="10" height="100"/><rect x="102" y="0" width="6" height="100"/><rect x="116" y="0" width="24" height="100"/></svg>`;
+  const svgCard = `<svg width="200" height="150" viewBox="0 0 140 100" fill="none" stroke="#d32f2f" stroke-width="8" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="10" width="132" height="80" rx="10" /><path d="M4 40 H 136" stroke="#333" stroke-width="16" /></svg>`;
+  const svgCheck = `<svg width="150" height="150" viewBox="0 0 120 120" fill="none" stroke="#4CAF50" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><circle cx="60" cy="60" r="50" /><path d="M35 60 L50 75 L85 40" /></svg>`;
+
+  const steps = [
+    {
+      targetId: 'target-screen-center', zoomClass: 'zoom-out', borderRadius: '50%',
+      vuiText: '화면 중앙을 터치해서 주문을 시작해주세요.',
+      onEnter: () => {}
+    },
+    {
+      targetId: 'target-burger', zoomClass: 'zoom-in', borderRadius: '24px',
+      vuiText: '원하시는 메뉴를 선택해주세요. 더블패티버거를 눌러보세요.',
+      onEnter: () => { document.getElementById('target-screen-center').style.display = 'none'; }
+    },
+    {
+      targetId: 'target-opt-set', zoomClass: 'zoom-in', borderRadius: '14px',
+      vuiText: '옵션을 선택해주세요. 세트를 눌러보세요.',
+      onEnter: () => { document.getElementById('optionPopup').style.display = 'flex'; }
+    },
+    {
+      targetId: 'target-opt-confirm', zoomClass: 'zoom-in', borderRadius: '16px',
+      vuiText: '잘하셨어요. 이제 하단의 확인 버튼을 눌러주세요.',
+      onEnter: () => {}
+    },
+    {
+      targetId: 'target-pay-btn', zoomClass: 'zoom-in', borderRadius: '45px',
+      vuiText: '메뉴가 담겼습니다. 이어서, 결제하기 버튼을 눌러주세요.',
+      onEnter: () => {
+        document.getElementById('optionPopup').style.display = 'none';
+        document.getElementById('totalPrice').innerText = '9,200';
+      }
+    },
+    {
+      targetId: 'target-barcode', zoomClass: 'zoom-out', borderRadius: '16px',
+      vuiText: '할인 쿠폰이나 바코드가 있다면 인식기에 스캔해주세요.',
+      onEnter: () => {
+        const overlay = document.getElementById('paymentOverlay');
+        overlay.style.display = 'flex'; setTimeout(() => overlay.style.opacity = '1', 50);
+        document.getElementById('paymentIcon').innerHTML = svgBarcode;
+        document.getElementById('paymentText').innerHTML = '적립 또는 할인 <span>바코드</span>를<br>스캔해주세요';
+      },
+      onExit: (done) => {
+        const phone = document.getElementById('animPhone');
+        phone.classList.add('anim-play-phone');
+        setTimeout(() => done(), 2000);
+      }
+    },
+    {
+      targetId: 'target-card', zoomClass: 'zoom-out', borderRadius: '16px',
+      vuiText: '신용카드를 하단 투입구에 끝까지 밀어 넣어주세요.',
+      onEnter: () => {
+        document.getElementById('paymentIcon').innerHTML = svgCard;
+        document.getElementById('paymentText').innerHTML = '<span>카드</span>를 삽입해 주세요';
+      },
+      onExit: (done) => {
+        const card = document.getElementById('animCard');
+        card.classList.add('anim-play-card');
+        setTimeout(() => done(), 2000);
+      }
+    },
+    {
+      targetId: 'target-receipt', zoomClass: 'zoom-out', borderRadius: '12px',
+      vuiText: '결제가 완료되었습니다. 출력된 영수증을 챙겨주세요.',
+      onEnter: () => { 
+        document.getElementById('paymentIcon').innerHTML = svgCheck;
+        document.getElementById('paymentText').innerHTML = '결제가 <span>완료</span>되었습니다';
+        document.getElementById('receiptPaper').style.transform = 'scaleY(1)'; 
+      }
+    }
+  ];
+
+  document.getElementById('startTutorialBtn').addEventListener('click', () => {
+    document.getElementById('startScreen').style.opacity = '0';
+    setTimeout(() => { document.getElementById('startScreen').style.display = 'none'; interceptor.style.display = 'block'; proceedToNextStep(); }, 400);
+  });
+
+  interceptor.addEventListener('click', () => proceedToNextStep());
+
+  let isAnimating = false;
+  function proceedToNextStep() {
+    if (isAnimating) return;
+    if (currentStep >= 0 && steps[currentStep] && steps[currentStep].onExit) {
+      isAnimating = true;
+      ring.classList.remove('active'); 
+      steps[currentStep].onExit(() => { isAnimating = false; executeNextStep(); });
+    } else { executeNextStep(); }
+  }
+
+  function executeNextStep() {
+    currentStep++;
+    if (currentStep < steps.length) { startStep(currentStep); } else { finishTutorial(); }
+  }
+
+  function startStep(index) {
+    const step = steps[index];
+    viewport.className = `kiosk-viewport ${step.zoomClass}`;
+    if (step.onEnter) step.onEnter();
+    guideText.innerText = step.vuiText;
+    setTimeout(() => playTTS(step.vuiText), 200);
+    ring.classList.add('active');
+    updateSpotlight(step);
+    setTimeout(() => updateSpotlight(step), 300);
+  }
+
+  function updateSpotlight(step) {
+    const target = document.getElementById(step.targetId);
+    if (!target) return;
+    const w = target.offsetWidth; const h = target.offsetHeight;
+    let left = 0, top = 0; let el = target;
+    while(el && el !== machine) { left += el.offsetLeft; top += el.offsetTop; el = el.offsetParent; }
+    const borderWidth = 6;
+    ring.style.left = `${left - borderWidth}px`; ring.style.top = `${top - borderWidth}px`; ring.style.width = `${w}px`; ring.style.height = `${h}px`; ring.style.borderRadius = step.borderRadius || '16px';
+  }
+
+  function playTTS(text) {
+    if (synth && isSoundOn) {
+      synth.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'ko-KR'; utterance.rate = 1.0; utterance.pitch = 1.1;
+      synth.speak(utterance);
+    }
+  }
+
+  function showConfetti() {
+    const success = document.getElementById('successScreen');
+    const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722'];
+    for(let i=0; i<60; i++) {
+      const conf = document.createElement('div');
+      conf.className = 'confetti';
+      conf.style.left = Math.random() * 100 + '%';
+      conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      conf.style.animationDelay = (Math.random() * 2) + 's';
+      success.appendChild(conf);
+    }
+  }
+
+  function finishTutorial() {
+    ring.classList.remove('active');
+    interceptor.style.display = 'none';
+    
+    const successScreen = document.getElementById('successScreen');
+    successScreen.style.display = 'flex';
+    setTimeout(() => successScreen.style.opacity = '1', 50);
+    showConfetti();
+    playTTS('정말 잘하셨어요! 햄버거 주문에 똑똑하게 성공했어요!');
+  }
+</script>
+</body>
+</html>

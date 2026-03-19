@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>카페 키오스크 연습 — SLAY</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+:root {
+  --color-primary:           #122961;
+  --color-primary-dark:      #0A1A42;
+  --color-secondary:         #FCE300;
+  --color-secondary-dark:    #D4BD00;
+  --color-bg:                #F5F5F5;
+  --color-surface:           #FFFFFF;
+  --color-text-primary:      #111111;
+  --color-text-on-primary:   #FFFFFF;
+  --color-text-on-secondary: #111111;
+  --color-border:            #CCCCCC;
+  --color-success:           #1A6B2A;
+  --min-touch:               48px;
+  --gap:                     20px;
+  --radius:                  12px;
+  --header-h:                68px;
+  --footer-h:                88px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--color-bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--color-text-primary); font-size: 18px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased; }
+button { cursor: pointer; border: none; background: none; font-family: inherit; font-size: inherit; }
+ul, ol { list-style: none; }
+#root { height: 100%; }
+
+/* ── App wrapper ── */
+#app { max-width: 800px; min-height: 100vh; margin: 0 auto;
+  background: var(--color-bg); position: relative; overflow-x: hidden; }
+
+/* ── Header ── */
+.header { height: var(--header-h); background: var(--color-primary);
+  color: var(--color-text-on-primary); display: flex; align-items: center;
+  padding: 0 16px; gap: 12px; position: sticky; top: 0; z-index: 10; flex-shrink: 0; }
+.header-back { min-width: var(--min-touch); min-height: var(--min-touch);
+  display: flex; align-items: center; gap: 6px; color: var(--color-text-on-primary);
+  font-size: 17px; font-weight: 600; padding: 0 8px; border-radius: 8px; transition: background .15s; }
+.header-back:hover, .header-back:focus-visible { background: rgba(255,255,255,.15); outline: none; }
+.header-title { flex: 1; font-size: 20px; font-weight: 700; text-align: center; }
+.header-right { min-width: var(--min-touch); display: flex; justify-content: flex-end; align-items: center; }
+
+/* ── Step indicator ── */
+.step-indicator { display: flex; align-items: center; gap: 5px; }
+.step-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.3); transition: background .2s; }
+.step-dot.done { background: var(--color-secondary); }
+.step-dot.active { background: #fff; }
+
+/* ── Body scroll ── */
+.body-scroll { flex: 1; overflow-y: auto; padding: var(--gap); padding-bottom: calc(var(--footer-h) + var(--gap)); }
+
+/* ── Footer bar ── */
+.footer-bar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 800px; height: var(--footer-h);
+  background: var(--color-surface); border-top: 2px solid var(--color-border);
+  display: flex; align-items: center; padding: 0 var(--gap); gap: 12px; z-index: 20; }
+
+/* ── Buttons ── */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 64px; min-width: var(--min-touch); border-radius: var(--radius);
+  font-size: 20px; font-weight: 700; transition: background .15s, transform .1s; padding: 0 24px; flex: 1; }
+.btn:active { transform: scale(.97); }
+.btn:focus-visible { outline: 3px solid var(--color-secondary); outline-offset: 2px; }
+.btn-primary { background: var(--color-primary); color: var(--color-text-on-primary); }
+.btn-primary:hover { background: var(--color-primary-dark); }
+.btn-secondary { background: var(--color-secondary); color: var(--color-text-on-secondary); }
+.btn-secondary:hover { background: var(--color-secondary-dark); }
+.btn-ghost { background: transparent; color: var(--color-primary); border: 2px solid var(--color-primary); }
+.btn-ghost:hover { background: rgba(18,41,97,.07); }
+.btn-full { width: 100%; }
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+/* ── Help button ── */
+.btn-help { min-width: var(--min-touch); min-height: var(--min-touch);
+  display: flex; align-items: center; gap: 5px; background: var(--color-secondary);
+  color: var(--color-text-on-secondary); font-size: 15px; font-weight: 700;
+  padding: 0 12px; border-radius: 8px; transition: background .15s; }
+.btn-help:hover { background: var(--color-secondary-dark); }
+
+/* ── HOME ── */
+#screen-home { background: var(--color-primary); display: flex; flex-direction: column; min-height: 100vh; }
+.home-body { flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 40px var(--gap); gap: 32px; }
+.home-logo { font-size: 64px; line-height: 1; }
+.home-title { color: var(--color-text-on-primary); font-size: 32px; font-weight: 700;
+  text-align: center; line-height: 1.3; }
+.home-subtitle { color: rgba(255,255,255,.8); font-size: 18px; text-align: center; }
+.home-modes { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 480px; }
+.mode-btn { width: 100%; height: 80px; border-radius: 16px; display: flex; align-items: center;
+  padding: 0 24px; gap: 16px; font-size: 20px; font-weight: 700;
+  transition: transform .15s, box-shadow .15s; }
+.mode-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+.mode-btn:active { transform: scale(.98); }
+.mode-btn:focus-visible { outline: 3px solid var(--color-secondary); outline-offset: 2px; }
+.mode-btn-tutorial { background: var(--color-secondary); color: var(--color-text-on-secondary); }
+.mode-btn-free     { background: var(--color-surface);   color: var(--color-primary); }
+.mode-btn-real     { background: var(--color-primary-dark); color: var(--color-text-on-primary);
+  border: 2px solid rgba(255,255,255,.3); }
+.mode-btn-icon { font-size: 28px; }
+.mode-btn-info { flex: 1; text-align: left; }
+.mode-btn-label { display: block; font-size: 20px; font-weight: 700; }
+.mode-btn-desc  { display: block; font-size: 14px; font-weight: 400; opacity: .75; margin-top: 2px; }
+.mode-btn-arrow { font-size: 22px; opacity: .6; }
+
+/* ── Tutorial Intro ── */
+.screen-flex { display: flex; flex-direction: column; min-height: 100vh; }
+.intro-body { display: flex; flex-direction: column; align-items: center; gap: 28px;
+  padding: 32px var(--gap) 120px; }
+.intro-title { font-size: 26px; font-weight: 700; color: var(--color-primary); text-align: center; }
+.intro-subtitle { font-size: 17px; color: #555; text-align: center; line-height: 1.6; }
+.intro-steps { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+.intro-step { background: var(--color-surface); border-radius: var(--radius);
+  padding: 20px; display: flex; align-items: center; gap: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.intro-step-num { width: 48px; height: 48px; border-radius: 50%; background: var(--color-primary);
+  color: var(--color-text-on-primary); font-size: 20px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.intro-step-icon { font-size: 28px; }
+.intro-step-info { flex: 1; }
+.intro-step-name { display: block; font-size: 18px; font-weight: 700; }
+.intro-step-desc { display: block; font-size: 15px; color: #555; margin-top: 2px; }
+
+/* ── Menu ── */
+.category-tabs { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px;
+  margin-bottom: var(--gap); scrollbar-width: none; }
+.category-tabs::-webkit-scrollbar { display: none; }
+.tab-btn { min-height: var(--min-touch); padding: 0 20px; border-radius: 24px;
+  font-size: 17px; font-weight: 700; white-space: nowrap; background: var(--color-surface);
+  color: var(--color-primary); border: 2px solid var(--color-border);
+  transition: all .15s; flex-shrink: 0; }
+.tab-btn.active { background: var(--color-primary); color: var(--color-text-on-primary); border-color: var(--color-primary); }
+.tab-btn:focus-visible { outline: 3px solid var(--color-secondary); outline-offset: 2px; }
+.menu-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: var(--gap); }
+@media (min-width: 600px) { .menu-grid { grid-template-columns: repeat(3,1fr); } }
+.menu-card { background: var(--color-surface); border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08); padding: 20px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  transition: transform .15s, box-shadow .15s; border: 2px solid transparent; min-height: 150px; }
+.menu-card:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,.12); }
+.menu-card:focus-visible { outline: 3px solid var(--color-secondary); outline-offset: 2px; }
+.menu-card:active { transform: scale(.97); }
+.menu-card-emoji { font-size: 42px; line-height: 1; }
+.menu-card-name { font-size: 16px; font-weight: 700; text-align: center; }
+.menu-card-price { font-size: 15px; color: var(--color-primary); font-weight: 600; }
+
+/* ── Cart bar ── */
+.cart-bar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 800px; background: var(--color-primary);
+  color: var(--color-text-on-primary); height: var(--footer-h);
+  display: flex; align-items: center; padding: 0 var(--gap); gap: 16px;
+  transition: background .15s; z-index: 20; border: none; }
+.cart-bar:hover { background: var(--color-primary-dark); }
+.cart-bar:focus-visible { outline: 3px solid var(--color-secondary); outline-offset: 2px; }
+.cart-bar-icon { font-size: 26px; }
+.cart-bar-count { background: var(--color-secondary); color: var(--color-text-on-secondary);
+  font-size: 14px; font-weight: 700; width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; }
+.cart-bar-label { flex: 1; font-size: 19px; font-weight: 700; }
+.cart-bar-total { font-size: 19px; font-weight: 700; color: var(--color-secondary); }
+.cart-bar-arrow { font-size: 22px; opacity: .8; }
+
+/* ── Item Detail ── */
+.detail-body { display: flex; flex-direction: column; gap: 24px;
+  padding: var(--gap); padding-bottom: calc(var(--footer-h) + var(--gap)); }
+.detail-hero { background: var(--color-surface); border-radius: var(--radius);
+  padding: 32px; display: flex; flex-direction: column; align-items: center;
+  gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.detail-emoji { font-size: 72px; line-height: 1; }
+.detail-name { font-size: 26px; font-weight: 700; }
+.detail-price { font-size: 22px; font-weight: 700; color: var(--color-primary); }
+.option-section { background: var(--color-surface); border-radius: var(--radius);
+  padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.option-label { font-size: 17px; font-weight: 700; margin-bottom: 12px; color: var(--color-primary); }
+.option-group { display: flex; gap: 12px; flex-wrap: wrap; }
+.option-chip { min-height: var(--min-touch); padding: 0 20px; border-radius: 24px;
+  font-size: 17px; font-weight: 600; border: 2px solid var(--color-border);
+  background: var(--color-surface); color: var(--color-text-primary);
+  transition: all .15s; cursor: pointer; }
+.option-chip.selected { background: var(--color-primary); color: var(--color-text-on-primary); border-color: var(--color-primary); }
+.option-chip:focus-visible { outline: 3px solid var(--color-secondary); outline-offset: 2px; }
+.qty-row { display: flex; align-items: center; gap: 16px; padding: 16px 0 0; }
+.qty-label { font-size: 17px; font-weight: 700; color: var(--color-primary); flex: 1; }
+.qty-controls { display: flex; align-items: center; gap: 12px; }
+.qty-btn { width: 52px; height: 52px; border-radius: 50%; background: var(--color-primary);
+  color: var(--color-text-on-primary); font-size: 26px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, transform .1s; }
+.qty-btn:hover { background: var(--color-primary-dark); }
+.qty-btn:active { transform: scale(.93); }
+.qty-btn:focus-visible { outline: 3px solid var(--color-secondary); outline-offset: 2px; }
+.qty-value { font-size: 24px; font-weight: 700; min-width: 36px; text-align: center; }
+
+/* ── Cart ── */
+.cart-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: var(--gap); }
+.cart-item { background: var(--color-surface); border-radius: var(--radius);
+  padding: 16px 20px; display: flex; align-items: center; gap: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.cart-item-emoji { font-size: 32px; }
+.cart-item-info { flex: 1; }
+.cart-item-name { font-size: 17px; font-weight: 700; }
+.cart-item-opts { font-size: 14px; color: #666; margin-top: 2px; }
+.cart-item-price { font-size: 17px; font-weight: 700; color: var(--color-primary); white-space: nowrap; }
+.cart-item-remove { width: var(--min-touch); height: var(--min-touch); border-radius: 50%;
+  background: #F5F5F5; color: #888; font-size: 20px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s; flex-shrink: 0; }
+.cart-item-remove:hover { background: #FFE0E0; color: #CC0000; }
+.cart-item-remove:focus-visible { outline: 3px solid var(--color-secondary); outline-offset: 2px; }
+.cart-total-row { background: var(--color-surface); border-radius: var(--radius);
+  padding: 20px; display: flex; justify-content: space-between; align-items: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.cart-total-label { font-size: 18px; font-weight: 700; }
+.cart-total-val { font-size: 24px; font-weight: 700; color: var(--color-primary); }
+.empty-cart { display: flex; flex-direction: column; align-items: center;
+  gap: 12px; padding: 60px 0; color: #888; }
+.empty-cart-icon { font-size: 56px; }
+.empty-cart-text { font-size: 18px; font-weight: 600; }
+
+/* ── Payment ── */
+.payment-body { display: flex; flex-direction: column; align-items: center;
+  gap: 24px; padding: 32px var(--gap) 120px; }
+.payment-title { font-size: 24px; font-weight: 700; text-align: center; color: var(--color-primary); }
+.payment-methods { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+.payment-method-btn { width: 100%; height: 100px; border-radius: 16px;
+  background: var(--color-surface); border: 3px solid var(--color-border);
+  display: flex; align-items: center; padding: 0 28px; gap: 20px;
+  font-size: 22px; font-weight: 700; color: var(--color-text-primary); transition: all .15s; }
+.payment-method-btn:hover { border-color: var(--color-primary); background: rgba(18,41,97,.04); }
+.payment-method-btn.selected { border-color: var(--color-primary); background: var(--color-primary); color: var(--color-text-on-primary); }
+.payment-method-btn:focus-visible { outline: 3px solid var(--color-secondary); outline-offset: 2px; }
+.payment-method-icon { font-size: 36px; }
+.payment-total-info { background: var(--color-surface); border-radius: var(--radius);
+  padding: 20px 24px; width: 100%; display: flex; justify-content: space-between;
+  align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.payment-total-label { font-size: 17px; font-weight: 600; }
+.payment-total-val { font-size: 24px; font-weight: 700; color: var(--color-primary); }
+
+/* ── Cash input UI ── */
+.cash-section { background: var(--color-surface); border-radius: var(--radius);
+  padding: 20px; width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.cash-label { font-size: 17px; font-weight: 700; color: var(--color-primary); margin-bottom: 14px; }
+.cash-bills { display: flex; flex-wrap: wrap; gap: 10px; }
+.cash-bill-btn { min-height: var(--min-touch); padding: 0 18px; border-radius: 24px;
+  font-size: 16px; font-weight: 700; border: 2px solid var(--color-border);
+  background: var(--color-surface); color: var(--color-text-primary); transition: all .15s; }
+.cash-bill-btn:hover { border-color: var(--color-primary); background: rgba(18,41,97,.06); }
+.cash-bill-btn:focus-visible { outline: 3px solid var(--color-secondary); outline-offset: 2px; }
+.cash-inserted { font-size: 17px; margin-top: 14px; }
+.cash-change { font-size: 20px; font-weight: 700; color: var(--color-success);
+  margin-top: 8px; padding: 12px 16px; background: #E8F5E9; border-radius: 10px; }
+.cash-short { font-size: 17px; color: #B00; margin-top: 8px; }
+
+/* ── Card processing overlay ── */
+.pay-processing { position: fixed; inset: 0; z-index: 500;
+  background: var(--color-primary); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 28px;
+  color: var(--color-text-on-primary); text-align: center; padding: var(--gap); }
+.pay-processing-icon { font-size: 72px; animation: cardSlide 1.2s ease-in-out infinite alternate; }
+@keyframes cardSlide {
+  0%   { transform: translateY(0) rotate(-5deg); }
+  100% { transform: translateY(-16px) rotate(5deg); }
+}
+.pay-processing-title { font-size: 26px; font-weight: 700; }
+.pay-processing-sub { font-size: 17px; opacity: .8; }
+.pay-progress { width: 220px; height: 8px; background: rgba(255,255,255,.25);
+  border-radius: 4px; overflow: hidden; margin-top: 8px; }
+.pay-progress-bar { height: 100%; background: var(--color-secondary);
+  border-radius: 4px; animation: progress 2s linear forwards; }
+@keyframes progress { from { width: 0; } to { width: 100%; } }
+
+/* ── Complete ── */
+.complete-body { display: flex; flex-direction: column; align-items: center;
+  gap: 28px; padding: 40px var(--gap) 120px; text-align: center; }
+.complete-icon { font-size: 80px; line-height: 1; }
+.complete-title { font-size: 30px; font-weight: 700; color: var(--color-primary); }
+.complete-msg { font-size: 17px; color: #444; line-height: 1.7; }
+.complete-ticket { background: var(--color-surface); border-radius: 16px;
+  padding: 28px 24px; width: 100%; box-shadow: 0 4px 16px rgba(0,0,0,.1);
+  border-top: 6px solid var(--color-primary); }
+.complete-ticket-num { font-size: 20px; font-weight: 700; color: #555; margin-bottom: 4px; }
+.complete-ticket-num-val { font-size: 64px; font-weight: 700; color: var(--color-primary); line-height: 1; margin-bottom: 20px; }
+.complete-ticket-list { border-top: 2px dashed var(--color-border); padding-top: 16px;
+  display: flex; flex-direction: column; gap: 8px; }
+.complete-ticket-row { display: flex; justify-content: space-between; font-size: 16px; }
+.complete-ticket-total { border-top: 2px solid var(--color-border); padding-top: 12px;
+  margin-top: 4px; display: flex; justify-content: space-between;
+  font-size: 18px; font-weight: 700; }
+.complete-cheer { font-size: 19px; font-weight: 700; color: var(--color-success);
+  background: #E8F5E9; padding: 16px 24px; border-radius: 12px;
+  width: 100%; text-align: center; }
+
+/* ── Hint bubble ── */
+.hint-bubble { position: fixed; z-index: 200; background: var(--color-secondary);
+  color: var(--color-text-on-secondary); border-radius: 14px; padding: 14px 18px;
+  font-size: 18px; font-weight: 700; max-width: 320px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.2); display: none; align-items: center;
+  gap: 10px; pointer-events: none; }
+.hint-bubble.visible { display: flex; }
+.hint-bubble::after { content: ''; position: absolute; border: 10px solid transparent; }
+.hint-bubble.below::after { top: -20px; left: 24px; border-bottom-color: var(--color-secondary); }
+.hint-bubble.above::after { bottom: -20px; left: 24px; border-top-color: var(--color-secondary); }
+.hint-bubble.bounce { animation: bounceHint 1.6s ease-in-out infinite; }
+@keyframes bounceHint {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+
+/* ── Highlight ── */
+.highlight { box-shadow: 0 0 0 4px var(--color-secondary), 0 0 20px rgba(252,227,0,.55) !important;
+  animation: pulse 1.5s infinite; position: relative; z-index: 5; }
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 4px var(--color-secondary), 0 0 20px rgba(252,227,0,.55); }
+  50%       { box-shadow: 0 0 0 8px var(--color-secondary), 0 0 32px rgba(252,227,0,.8); }
+}
+
+/* ── Toast ── */
+#feedback-toast { position: fixed; top: 80px; left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: var(--color-primary); color: var(--color-text-on-primary);
+  padding: 16px 28px; border-radius: 40px; font-size: 18px; font-weight: 700;
+  box-shadow: 0 6px 24px rgba(0,0,0,.2); opacity: 0;
+  transition: opacity .3s, transform .3s; z-index: 300; pointer-events: none; white-space: nowrap; }
+#feedback-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Help overlay ── */
+#help-overlay { display: none; position: fixed; inset: 0; z-index: 400;
+  background: rgba(0,0,0,.65); align-items: flex-end; }
+#help-overlay.visible { display: flex; }
+.help-panel { background: var(--color-surface); border-radius: 24px 24px 0 0;
+  padding: 28px var(--gap) 40px; width: 100%; max-width: 800px; margin: 0 auto; }
+.help-panel-header { display: flex; justify-content: space-between;
+  align-items: center; margin-bottom: 20px; }
+.help-panel-title { font-size: 22px; font-weight: 700; color: var(--color-primary); }
+.help-close { width: var(--min-touch); height: var(--min-touch); border-radius: 50%;
+  background: #F0F0F0; font-size: 22px; display: flex; align-items: center;
+  justify-content: center; transition: background .15s; }
+.help-close:hover { background: #E0E0E0; }
+.help-steps-list { display: flex; flex-direction: column; gap: 14px; }
+.help-step { display: flex; gap: 14px; align-items: flex-start; }
+.help-step-num { width: 32px; height: 32px; border-radius: 50%;
+  background: var(--color-primary); color: var(--color-text-on-primary);
+  font-size: 16px; font-weight: 700; display: flex; align-items: center;
+  justify-content: center; flex-shrink: 0; margin-top: 2px; }
+.help-step-text { font-size: 17px; line-height: 1.5; }
+.help-step-current .help-step-num { background: var(--color-secondary); color: var(--color-text-on-secondary); }
+.help-step-current .help-step-text { font-weight: 700; color: var(--color-primary); }
+
+/* ── Accessibility ── */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; }
+*:focus-visible { outline: 3px solid var(--color-secondary); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ================================================================
+   데이터
+   ================================================================ */
+const MENUS = [
+  { id:1,  cat:'커피',   emoji:'☕', name:'아메리카노',     price:4000, opts:['temp','size'] },
+  { id:2,  cat:'커피',   emoji:'🥛', name:'카페라떼',       price:4500, opts:['temp','size'] },
+  { id:3,  cat:'커피',   emoji:'☕', name:'카푸치노',       price:5000, opts:['temp'] },
+  { id:4,  cat:'커피',   emoji:'🍯', name:'카라멜마끼아또', price:5500, opts:['temp','size'] },
+  { id:5,  cat:'커피',   emoji:'☕', name:'에스프레소',     price:3500, opts:[] },
+  { id:6,  cat:'커피',   emoji:'🌿', name:'바닐라라떼',     price:5000, opts:['temp','size'] },
+  { id:7,  cat:'음료',   emoji:'🍓', name:'딸기스무디',     price:5500, opts:['size'] },
+  { id:8,  cat:'음료',   emoji:'🍵', name:'녹차라떼',       price:5000, opts:['temp','size'] },
+  { id:9,  cat:'음료',   emoji:'🍊', name:'오렌지주스',     price:4500, opts:[] },
+  { id:10, cat:'음료',   emoji:'🍋', name:'레몬에이드',     price:5000, opts:['size'] },
+  { id:11, cat:'음료',   emoji:'🍫', name:'초코스무디',     price:5500, opts:['size'] },
+  { id:12, cat:'음료',   emoji:'🫖', name:'유자차',         price:4500, opts:['temp'] },
+  { id:13, cat:'디저트', emoji:'🥐', name:'크루아상',       price:3500, opts:[] },
+  { id:14, cat:'디저트', emoji:'🍰', name:'치즈케이크',     price:6000, opts:[] },
+  { id:15, cat:'디저트', emoji:'🧁', name:'마들렌',         price:2500, opts:[] },
+  { id:16, cat:'디저트', emoji:'🧇', name:'와플',           price:5500, opts:[] },
+  { id:17, cat:'디저트', emoji:'🫐', name:'머핀',           price:3000, opts:[] },
+  { id:18, cat:'디저트', emoji:'🍮', name:'티라미수',       price:6500, opts:[] },
+];
+const CATS = ['커피', '음료', '디저트'];
+
+const TUT = [
+  { id:'category-tabs',   msg:'위의 탭을 눌러 메뉴를 살펴보세요',       icon:'👆' },
+  { id:'menu-grid',       msg:'마음에 드는 메뉴를 눌러보세요',           icon:'👆' },
+  { id:'detail-options',  msg:'온도나 크기를 선택해보세요',              icon:'👆' },
+  { id:'add-to-cart-btn', msg:'담기 버튼을 눌러 장바구니에 담아보세요',  icon:'🛒' },
+  { id:'cart-bar',        msg:'장바구니를 확인해볼까요?',                icon:'👆' },
+  { id:'pay-btn',         msg:'결제하기를 눌러주세요',                   icon:'💳' },
+  { id:'payment-methods', msg:'결제 방법을 선택해보세요',                icon:'👆' },
+  { id:null,              msg:'주문 완료! 정말 잘 하셨어요 👏',           icon:'🎉' },
+];
+
+const HELP = [
+  { text: '원하는 카테고리(커피/음료/디저트)를 눌러보세요',   screens:['menu'] },
+  { text: '메뉴 카드를 눌러 상세를 확인하세요',               screens:['menu'] },
+  { text: '온도와 크기를 선택한 뒤 [담기]를 누르세요',        screens:['item-detail'] },
+  { text: '하단 장바구니 버튼으로 담은 메뉴를 확인하세요',    screens:['menu','cart'] },
+  { text: '[결제하기]를 눌러 주문을 마무리하세요',            screens:['cart','payment'] },
+];
+
+const BILLS = [1000, 5000, 10000, 50000];
+
+const fmt = n => n.toLocaleString() + '원';
+let uidSeq = 0;
+const uid = () => ++uidSeq;
+
+/* ================================================================
+   FeedbackToast
+   ================================================================ */
+function FeedbackToast({ msg, show }) {
+  return (
+    <div id="feedback-toast" role="status" aria-live="polite" className={show ? 'show' : ''}>
+      {msg}
+    </div>
+  );
+}
+
+/* ================================================================
+   HintBubble
+   ================================================================ */
+function HintBubble({ targetId, message, icon }) {
+  const ref = useRef(null);
+  const [style, setStyle]   = useState({ top: -999, left: 0 });
+  const [place, setPlace]   = useState('below');
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (!targetId) { setVisible(false); return; }
+    const timer = setTimeout(() => {
+      const target = document.getElementById(targetId);
+      if (!target || !ref.current) { setVisible(false); return; }
+      const r  = target.getBoundingClientRect();
+      const bh = ref.current.offsetHeight || 64;
+      const bw = ref.current.offsetWidth  || 280;
+      const maxL = window.innerWidth - bw - 10;
+      const left = Math.max(10, Math.min(r.left, maxL));
+      if (window.innerHeight - r.bottom >= bh + 20) {
+        setStyle({ top: r.bottom + 12, left });
+        setPlace('below');
+      } else {
+        setStyle({ top: Math.max(10, r.top - bh - 12), left });
+        setPlace('above');
+      }
+      setVisible(true);
+      target.classList.add('highlight');
+    }, 350);
+    return () => {
+      clearTimeout(timer);
+      const el = document.getElementById(targetId);
+      if (el) el.classList.remove('highlight');
+    };
+  }, [targetId]);
+
+  if (!message) return null;
+  return (
+    <div ref={ref} id="hint-bubble" role="tooltip" aria-live="polite"
+      className={['hint-bubble', visible ? 'visible' : '', place, 'bounce'].join(' ')}
+      style={style}>
+      <span aria-hidden="true">{icon}</span>
+      <span>{message}</span>
+    </div>
+  );
+}
+
+/* ================================================================
+   HelpOverlay
+   ================================================================ */
+function HelpOverlay({ screen, onClose }) {
+  return (
+    <div id="help-overlay" role="dialog" aria-modal="true" aria-label="도움말"
+      className="visible" onClick={onClose}>
+      <div className="help-panel" onClick={e => e.stopPropagation()}>
+        <div className="help-panel-header">
+          <span className="help-panel-title">💡 이렇게 해보세요</span>
+          <button className="help-close" onClick={onClose} aria-label="닫기">✕</button>
+        </div>
+        <ul className="help-steps-list">
+          {HELP.map((step, i) => {
+            const cur = step.screens.includes(screen);
+            return (
+              <li key={i} className={`help-step${cur ? ' help-step-current' : ''}`}>
+                <span className="help-step-num">{i + 1}</span>
+                <span className="help-step-text">{step.text}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   Shared: Header / StepIndicator / FooterBar
+   ================================================================ */
+function StepIndicator({ current, total }) {
+  return (
+    <div className="step-indicator" aria-label={`${current + 1}단계 / ${total}단계`}>
+      {Array.from({ length: total }, (_, i) => (
+        <span key={i} className={`step-dot${i < current ? ' done' : i === current ? ' active' : ''}`} />
+      ))}
+    </div>
+  );
+}
+
+function Header({ title, onBack, backLabel = '뒤로', right = null }) {
+  return (
+    <header className="header">
+      {onBack
+        ? <button className="header-back" onClick={onBack} aria-label={`${backLabel}로 돌아가기`}>
+            <span aria-hidden="true">‹</span> {backLabel}
+          </button>
+        : <span style={{ minWidth: 'var(--min-touch)' }} />
+      }
+      <span className="header-title">{title}</span>
+      <span className="header-right">{right}</span>
+    </header>
+  );
+}
+
+function FooterBar({ children }) {
+  return <div className="footer-bar">{children}</div>;
+}
+
+function Btn({ v = 'primary', full, disabled, onClick, label, id, children }) {
+  return (
+    <button id={id} className={`btn btn-${v}${full ? ' btn-full' : ''}`}
+      disabled={disabled} onClick={onClick} aria-label={label}>
+      {children}
+    </button>
+  );
+}
+
+/* ================================================================
+   HomeScreen
+   ================================================================ */
+function HomeScreen({ onStart }) {
+  return (
+    <section id="screen-home" aria-label="시작 화면">
+      <div className="home-body">
+        <div className="home-logo" aria-hidden="true">☕</div>
+        <h1 className="home-title">카페 키오스크<br />연습해봐요!</h1>
+        <p className="home-subtitle">원하는 방식으로<br />천천히 연습할 수 있어요</p>
+        <nav className="home-modes" aria-label="연습 모드 선택">
+          <button className="mode-btn mode-btn-tutorial" onClick={() => onStart('tutorial')}
+            aria-label="튜토리얼 모드 — 단계별로 안내해드려요">
+            <span className="mode-btn-icon" aria-hidden="true">📚</span>
+            <span className="mode-btn-info">
+              <span className="mode-btn-label">튜토리얼</span>
+              <span className="mode-btn-desc">단계별로 안내해드려요</span>
+            </span>
+            <span className="mode-btn-arrow" aria-hidden="true">›</span>
+          </button>
+          <button className="mode-btn mode-btn-free" onClick={() => onStart('free')}
+            aria-label="자유 연습 모드 — 도움말 보면서 자유롭게">
+            <span className="mode-btn-icon" aria-hidden="true">🔍</span>
+            <span className="mode-btn-info">
+              <span className="mode-btn-label">자유 연습</span>
+              <span className="mode-btn-desc">도움말 보면서 자유롭게</span>
+            </span>
+            <span className="mode-btn-arrow" aria-hidden="true">›</span>
+          </button>
+          <button className="mode-btn mode-btn-real" onClick={() => onStart('real')}
+            aria-label="실전 연습 모드 — 힌트 없이 도전해봐요">
+            <span className="mode-btn-icon" aria-hidden="true">🏆</span>
+            <span className="mode-btn-info">
+              <span className="mode-btn-label">실전 연습</span>
+              <span className="mode-btn-desc">힌트 없이 도전해봐요</span>
+            </span>
+            <span className="mode-btn-arrow" aria-hidden="true">›</span>
+          </button>
+        </nav>
+      </div>
+    </section>
+  );
+}
+
+/* ================================================================
+   TutorialIntroScreen
+   ================================================================ */
+function TutorialIntroScreen({ onBack, onStart }) {
+  const steps = [
+    { icon:'☕', name:'메뉴 선택',     desc:'마음에 드는 메뉴를 골라요' },
+    { icon:'🛒', name:'장바구니 담기', desc:'옵션을 선택하고 담아요' },
+    { icon:'💳', name:'결제하기',      desc:'결제 방법을 선택하고 완료!' },
+  ];
+  return (
+    <section className="screen-flex" aria-label="튜토리얼 안내">
+      <Header title="튜토리얼" onBack={onBack} backLabel="처음으로" />
+      <div className="body-scroll">
+        <div className="intro-body">
+          <h2 className="intro-title">이렇게 진행돼요!</h2>
+          <p className="intro-subtitle">각 단계마다 어디를 눌러야 할지<br />노란색으로 알려드려요 😊</p>
+          <ol className="intro-steps" aria-label="주문 순서">
+            {steps.map((s, i) => (
+              <li key={i} className="intro-step">
+                <span className="intro-step-num" aria-hidden="true">{i + 1}</span>
+                <span className="intro-step-icon" aria-hidden="true">{s.icon}</span>
+                <span className="intro-step-info">
+                  <span className="intro-step-name">{s.name}</span>
+                  <span className="intro-step-desc">{s.desc}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+      <FooterBar>
+        <Btn onClick={onStart} label="튜토리얼 시작하기">
+          <span aria-hidden="true">▶</span> 시작할게요!
+        </Btn>
+      </FooterBar>
+    </section>
+  );
+}
+
+/* ================================================================
+   MenuScreen
+   ================================================================ */
+function MenuScreen({ mode, cart, tutStep, onSelectItem, onGoCart, onBack, onHelp, onCatClick }) {
+  const [activeCat, setActiveCat] = useState('커피');
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const count = cart.reduce((s, i) => s + i.qty, 0);
+
+  const handleCat = (cat) => {
+    setActiveCat(cat);
+    onCatClick && onCatClick(cat);
+  };
+
+  const headerRight = mode === 'tutorial'
+    ? <StepIndicator current={Math.min(tutStep, TUT.length - 1)} total={TUT.length} />
+    : mode === 'free'
+    ? <button className="btn-help" onClick={onHelp} aria-label="도움말 열기">💡 도움말</button>
+    : null;
+
+  return (
+    <section className="screen-flex" aria-label="메뉴 선택">
+      <Header title="메뉴 선택" onBack={onBack} backLabel="뒤로" right={headerRight} />
+      <div className="body-scroll" id="menu-scroll">
+        <div id="category-tabs" className="category-tabs" role="tablist" aria-label="메뉴 카테고리">
+          {CATS.map(cat => (
+            <button key={cat} className={`tab-btn${activeCat === cat ? ' active' : ''}`}
+              role="tab" aria-selected={activeCat === cat}
+              onClick={() => handleCat(cat)}>
+              {cat}
+            </button>
+          ))}
+        </div>
+        <div id="menu-grid" className="menu-grid" role="list" aria-label="메뉴 목록">
+          {MENUS.filter(m => m.cat === activeCat).map(item => (
+            <button key={item.id} className="menu-card" role="listitem"
+              onClick={() => onSelectItem(item)}
+              aria-label={`${item.name} ${fmt(item.price)}`}>
+              <span className="menu-card-emoji" aria-hidden="true">{item.emoji}</span>
+              <span className="menu-card-name">{item.name}</span>
+              <span className="menu-card-price">{fmt(item.price)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      {count > 0 && (
+        <button id="cart-bar" className="cart-bar" onClick={onGoCart}
+          aria-label={`장바구니 확인, ${count}개, ${fmt(total)}`}>
+          <span className="cart-bar-icon" aria-hidden="true">🛒</span>
+          <span className="cart-bar-count" aria-live="polite">{count}</span>
+          <span className="cart-bar-label">장바구니 확인</span>
+          <span className="cart-bar-total">{fmt(total)}</span>
+          <span className="cart-bar-arrow" aria-hidden="true">›</span>
+        </button>
+      )}
+    </section>
+  );
+}
+
+/* ================================================================
+   ItemDetailScreen
+   ================================================================ */
+function ItemDetailScreen({ item, opts, mode, tutStep, onSetOpt, onAddToCart, onBack }) {
+  const hasOpts = item.opts.length > 0;
+
+  const headerRight = mode === 'tutorial'
+    ? <StepIndicator current={Math.min(tutStep, TUT.length - 1)} total={TUT.length} />
+    : null;
+
+  return (
+    <section className="screen-flex" aria-label="메뉴 상세">
+      <Header title={item.name} onBack={onBack} backLabel="메뉴로" right={headerRight} />
+      <div className="detail-body">
+        <div className="detail-hero">
+          <span className="detail-emoji" aria-hidden="true">{item.emoji}</span>
+          <span className="detail-name">{item.name}</span>
+          <span className="detail-price">{fmt(item.price)}</span>
+        </div>
+
+        {hasOpts && (
+          <div id="detail-options">
+            {item.opts.includes('temp') && (
+              <div className="option-section">
+                <p className="option-label">🌡️ 온도</p>
+                <div className="option-group" role="group" aria-label="온도 선택">
+                  {['따뜻하게', '차갑게'].map(v => (
+                    <button key={v}
+                      className={`option-chip${opts.temp === v ? ' selected' : ''}`}
+                      onClick={() => onSetOpt('temp', v)}
+                      aria-pressed={opts.temp === v}>{v}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {item.opts.includes('size') && (
+              <div className="option-section" style={{ marginTop: 16 }}>
+                <p className="option-label">📏 크기</p>
+                <div className="option-group" role="group" aria-label="크기 선택">
+                  {['작은컵', '보통', '큰컵'].map(v => (
+                    <button key={v}
+                      className={`option-chip${opts.size === v ? ' selected' : ''}`}
+                      onClick={() => onSetOpt('size', v)}
+                      aria-pressed={opts.size === v}>{v}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="option-section">
+          <div className="qty-row">
+            <span className="qty-label">수량</span>
+            <div className="qty-controls" role="group" aria-label="수량 조절">
+              <button className="qty-btn" onClick={() => onSetOpt('qty', Math.max(1, opts.qty - 1))}
+                aria-label="수량 줄이기">－</button>
+              <span className="qty-value" aria-live="polite" aria-atomic="true">{opts.qty}</span>
+              <button className="qty-btn" onClick={() => onSetOpt('qty', Math.min(10, opts.qty + 1))}
+                aria-label="수량 늘리기">＋</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <FooterBar>
+        <Btn v="ghost" onClick={onBack} label="취소하고 메뉴로 돌아가기">취소</Btn>
+        <Btn id="add-to-cart-btn" onClick={onAddToCart} label="장바구니에 담기">
+          <span aria-hidden="true">🛒</span> 담기
+        </Btn>
+      </FooterBar>
+    </section>
+  );
+}
+
+/* ================================================================
+   CartScreen
+   ================================================================ */
+function CartScreen({ cart, mode, tutStep, onRemove, onBack, onPay }) {
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  const headerRight = mode === 'tutorial'
+    ? <StepIndicator current={Math.min(tutStep, TUT.length - 1)} total={TUT.length} />
+    : null;
+
+  const optLabel = (item) => {
+    const parts = [];
+    if (item.temp) parts.push(item.temp);
+    if (item.size) parts.push(item.size);
+    if (item.qty > 1) parts.push(`${item.qty}개`);
+    return parts.join(' · ');
+  };
+
+  return (
+    <section className="screen-flex" aria-label="장바구니">
+      <Header title="장바구니" onBack={onBack} backLabel="메뉴로" right={headerRight} />
+      <div className="body-scroll">
+        {cart.length === 0 ? (
+          <div className="empty-cart">
+            <span className="empty-cart-icon" aria-hidden="true">🛒</span>
+            <span className="empty-cart-text">아직 담은 메뉴가 없어요</span>
+          </div>
+        ) : (
+          <>
+            <ul className="cart-list" aria-label="장바구니 목록">
+              {cart.map(item => (
+                <li key={item.uid} className="cart-item">
+                  <span className="cart-item-emoji" aria-hidden="true">{item.emoji}</span>
+                  <span className="cart-item-info">
+                    <span className="cart-item-name">{item.name}</span>
+                    <span className="cart-item-opts">{optLabel(item)}</span>
+                  </span>
+                  <span className="cart-item-price">{fmt(item.price * item.qty)}</span>
+                  <button className="cart-item-remove" onClick={() => onRemove(item.uid)}
+                    aria-label={`${item.name} 삭제`}>✕</button>
+                </li>
+              ))}
+            </ul>
+            <div className="cart-total-row">
+              <span className="cart-total-label">합계</span>
+              <span className="cart-total-val">{fmt(total)}</span>
+            </div>
+          </>
+        )}
+      </div>
+      <FooterBar>
+        <Btn v="ghost" onClick={onBack} label="메뉴 더 담기">
+          <span aria-hidden="true">＋</span> 더 담기
+        </Btn>
+        <Btn id="pay-btn" disabled={cart.length === 0} onClick={onPay} label="결제하기">
+          <span aria-hidden="true">💳</span> 결제하기
+        </Btn>
+      </FooterBar>
+    </section>
+  );
+}
+
+/* ================================================================
+   PaymentScreen
+   ================================================================ */
+function PaymentScreen({ cart, mode, tutStep, onBack, onConfirm }) {
+  const [selected, setSelected] = useState(null);
+  const [cashInput, setCashInput] = useState(0);
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const change = cashInput - total;
+
+  const headerRight = mode === 'tutorial'
+    ? <StepIndicator current={Math.min(tutStep, TUT.length - 1)} total={TUT.length} />
+    : null;
+
+  const handleSelect = (method) => {
+    setSelected(method);
+    if (method !== 'cash') setCashInput(0);
+    if (mode === 'tutorial' && tutStep === 6) {
+      // advance happens in App via onConfirm pathway
+    }
+  };
+
+  const canConfirm = selected === 'card' || (selected === 'cash' && cashInput >= total);
+
+  return (
+    <section className="screen-flex" aria-label="결제 방법 선택">
+      <Header title="결제 방법" onBack={onBack} backLabel="장바구니" right={headerRight} />
+      <div className="body-scroll">
+        <div className="payment-body">
+          <p className="payment-title">어떻게 결제할까요?</p>
+          <div className="payment-total-info">
+            <span className="payment-total-label">총 결제 금액</span>
+            <span className="payment-total-val">{fmt(total)}</span>
+          </div>
+
+          <div id="payment-methods" className="payment-methods" role="group" aria-label="결제 수단 선택">
+            {[{ k:'card', icon:'💳', label:'카드 결제' },
+              { k:'cash', icon:'💵', label:'현금 결제' }].map(({ k, icon, label }) => (
+              <button key={k}
+                className={`payment-method-btn${selected === k ? ' selected' : ''}`}
+                onClick={() => handleSelect(k)}
+                aria-pressed={selected === k}
+                aria-label={label}>
+                <span className="payment-method-icon" aria-hidden="true">{icon}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {selected === 'cash' && (
+            <div className="cash-section">
+              <p className="cash-label">💰 넣을 금액을 선택하세요</p>
+              <div className="cash-bills">
+                {BILLS.map(b => (
+                  <button key={b} className="cash-bill-btn"
+                    onClick={() => setCashInput(c => c + b)}
+                    aria-label={`${fmt(b)} 추가`}>
+                    +{fmt(b)}
+                  </button>
+                ))}
+                <button className="cash-bill-btn" style={{ color: '#B00' }}
+                  onClick={() => setCashInput(0)} aria-label="초기화">초기화</button>
+              </div>
+              {cashInput > 0 && (
+                <div>
+                  <p className="cash-inserted">투입 금액: <strong>{fmt(cashInput)}</strong></p>
+                  {change >= 0
+                    ? <p className="cash-change">거스름돈: {fmt(change)}</p>
+                    : <p className="cash-short">⚠ {fmt(-change)} 더 필요해요</p>
+                  }
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      <FooterBar>
+        <Btn v="ghost" onClick={onBack} label="취소">취소</Btn>
+        <Btn disabled={!canConfirm} onClick={() => onConfirm(selected)} label="결제 확인">
+          <span aria-hidden="true">✔</span> 결제 확인
+        </Btn>
+      </FooterBar>
+    </section>
+  );
+}
+
+/* ================================================================
+   CompleteScreen
+   ================================================================ */
+function CompleteScreen({ cart, orderNum, payMethod, onHome, onRetry }) {
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const payLabel = payMethod === 'card' ? '카드' : '현금';
+  return (
+    <section className="screen-flex" aria-label="주문 완료">
+      <header className="header">
+        <span style={{ minWidth: 'var(--min-touch)' }} />
+        <span className="header-title">주문 완료</span>
+        <span style={{ minWidth: 'var(--min-touch)' }} />
+      </header>
+      <div className="body-scroll">
+        <div className="complete-body">
+          <span className="complete-icon" aria-hidden="true">🎉</span>
+          <h2 className="complete-title">주문이 완료됐어요!</h2>
+          <p className="complete-msg">
+            준비되면 번호로 불러드려요.<br />잠시만 기다려 주세요 😊
+          </p>
+          <div className="complete-ticket" aria-label="주문 영수증">
+            <p className="complete-ticket-num">주문 번호</p>
+            <p className="complete-ticket-num-val">{String(orderNum).padStart(3, '0')}</p>
+            <ul className="complete-ticket-list">
+              {cart.map(item => (
+                <li key={item.uid} className="complete-ticket-row">
+                  <span>{item.emoji} {item.name} ×{item.qty}</span>
+                  <span>{fmt(item.price * item.qty)}</span>
+                </li>
+              ))}
+              <li className="complete-ticket-total">
+                <span>합계 ({payLabel})</span>
+                <span>{fmt(total)}</span>
+              </li>
+            </ul>
+          </div>
+          <div className="complete-cheer">
+            🌟 혼자서 해내셨어요! 정말 잘 하셨어요!
+          </div>
+        </div>
+      </div>
+      <FooterBar>
+        <Btn v="ghost" onClick={onRetry} label="한 번 더 연습하기">
+          <span aria-hidden="true">🔄</span> 다시 해보기
+        </Btn>
+        <Btn onClick={onHome} label="처음 화면으로 돌아가기">
+          <span aria-hidden="true">🏠</span> 처음으로
+        </Btn>
+      </FooterBar>
+    </section>
+  );
+}
+
+/* ================================================================
+   PayProcessingOverlay
+   ================================================================ */
+function PayProcessingOverlay() {
+  return (
+    <div className="pay-processing" role="status" aria-live="polite">
+      <div className="pay-processing-icon" aria-hidden="true">💳</div>
+      <p className="pay-processing-title">결제 처리 중...</p>
+      <p className="pay-processing-sub">잠시만 기다려 주세요</p>
+      <div className="pay-progress" role="progressbar" aria-label="결제 진행">
+        <div className="pay-progress-bar" />
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   App
+   ================================================================ */
+function App() {
+  const [screen,      setScreen]      = useState(() => localStorage.getItem('slay_screen') || 'home');
+  const [mode,        setMode]        = useState(() => localStorage.getItem('slay_mode') || null);
+  const [cart,        setCart]        = useState(() => { try { return JSON.parse(localStorage.getItem('slay_cart') || '[]'); } catch { return []; } });
+  const [selItem,     setSelItem]     = useState(null);
+  const [selOpts,     setSelOpts]     = useState({ temp: '따뜻하게', size: '보통', qty: 1 });
+  const [tutStep,     setTutStep]     = useState(() => parseInt(localStorage.getItem('slay_tut') || '0'));
+  const [hintId,      setHintId]      = useState(null);
+  const [showHelp,    setShowHelp]    = useState(false);
+  const [payProcessing, setPayProcessing] = useState(false);
+  const [payMethod,   setPayMethod]   = useState(null);
+  const [orderNum,    setOrderNum]    = useState(42);
+  const [toast,       setToast]       = useState({ msg: '', show: false });
+  const toastTimer = useRef(null);
+
+  // ── localStorage sync ──
+  useEffect(() => { localStorage.setItem('slay_screen', screen); }, [screen]);
+  useEffect(() => { if (mode) localStorage.setItem('slay_mode', mode); }, [mode]);
+  useEffect(() => { localStorage.setItem('slay_cart', JSON.stringify(cart)); }, [cart]);
+  useEffect(() => { localStorage.setItem('slay_tut', tutStep); }, [tutStep]);
+
+  // ── Toast ──
+  const showToast = useCallback((msg) => {
+    clearTimeout(toastTimer.current);
+    setToast({ msg, show: true });
+    toastTimer.current = setTimeout(() => setToast(t => ({ ...t, show: false })), 2500);
+  }, []);
+
+  // ── Navigate ──
+  const nav = useCallback((s) => {
+    setScreen(s);
+    setHintId(null);
+  }, []);
+
+  // ── Tutorial hint ──
+  const applyHint = useCallback((step) => {
+    const t = TUT[step];
+    if (t && t.id) setTimeout(() => setHintId(t.id), 400);
+    else setHintId(null);
+  }, []);
+
+  // ── Start mode ──
+  const startMode = useCallback((m) => {
+    setMode(m);
+    setCart([]);
+    setTutStep(0);
+    setHintId(null);
+    setPayMethod(null);
+    if (m === 'tutorial') {
+      nav('tutorial-intro');
+    } else {
+      nav('menu');
+    }
+  }, [nav]);
+
+  // ── Start tutorial ──
+  const startTutorial = useCallback(() => {
+    nav('menu');
+    setTutStep(0);
+    setTimeout(() => applyHint(0), 500);
+  }, [nav, applyHint]);
+
+  // ── Category click (tutorial step 0 → 1) ──
+  const handleCatClick = useCallback(() => {
+    if (mode === 'tutorial' && tutStep === 0) {
+      setTutStep(1);
+      setTimeout(() => applyHint(1), 300);
+    }
+  }, [mode, tutStep, applyHint]);
+
+  // ── Select menu item ──
+  const handleSelectItem = useCallback((item) => {
+    setSelItem(item);
+    setSelOpts({ temp: '따뜻하게', size: '보통', qty: 1 });
+    nav('item-detail');
+    if (mode === 'tutorial' && tutStep === 1) {
+      const next = 2;
+      setTutStep(next);
+      setTimeout(() => applyHint(next), 500);
+    } else if (mode === 'tutorial' && tutStep >= 2) {
+      setTimeout(() => applyHint(tutStep), 500);
+    }
+  }, [mode, tutStep, nav, applyHint]);
+
+  // ── Set option ──
+  const handleSetOpt = useCallback((key, val) => {
+    setSelOpts(o => ({ ...o, [key]: val }));
+    if (mode === 'tutorial' && tutStep === 2) {
+      setTutStep(3);
+      setTimeout(() => applyHint(3), 300);
+    }
+  }, [mode, tutStep, applyHint]);
+
+  // ── Add to cart ──
+  const handleAddToCart = useCallback(() => {
+    if (!selItem) return;
+    const newItem = {
+      uid: uid(), id: selItem.id, name: selItem.name, emoji: selItem.emoji,
+      price: selItem.price, qty: selOpts.qty,
+      temp: selItem.opts.includes('temp') ? selOpts.temp : null,
+      size: selItem.opts.includes('size') ? selOpts.size : null,
+    };
+    setCart(c => {
+      const existing = c.find(x =>
+        x.id === newItem.id && x.temp === newItem.temp && x.size === newItem.size
+      );
+      if (existing) {
+        return c.map(x => x.uid === existing.uid
+          ? { ...x, qty: Math.min(10, x.qty + newItem.qty) }
+          : x
+        );
+      }
+      return c.length >= 10 ? c : [...c, newItem];
+    });
+    showToast(`✅ ${selItem.name} 담았어요!`);
+    nav('menu');
+    if (mode === 'tutorial' && tutStep === 3) {
+      setTutStep(4);
+      setTimeout(() => applyHint(4), 500);
+    }
+  }, [selItem, selOpts, mode, tutStep, nav, applyHint, showToast]);
+
+  // ── Go to cart ──
+  const handleGoCart = useCallback(() => {
+    nav('cart');
+    if (mode === 'tutorial' && tutStep === 4) {
+      setTutStep(5);
+      setTimeout(() => applyHint(5), 400);
+    }
+  }, [mode, tutStep, nav, applyHint]);
+
+  // ── Remove from cart ──
+  const handleRemove = useCallback((itemUid) => {
+    setCart(c => c.filter(x => x.uid !== itemUid));
+  }, []);
+
+  // ── Go to payment ──
+  const handleGoPayment = useCallback(() => {
+    nav('payment');
+    if (mode === 'tutorial' && tutStep === 5) {
+      setTutStep(6);
+      setTimeout(() => applyHint(6), 400);
+    }
+  }, [mode, tutStep, nav, applyHint]);
+
+  // ── Confirm payment ──
+  const handleConfirmPayment = useCallback((method) => {
+    if (mode === 'tutorial' && tutStep === 6) {
+      setTutStep(7);
+      setHintId(null);
+    }
+    setPayMethod(method);
+    setOrderNum(Math.floor(Math.random() * 99) + 1);
+    if (method === 'card') {
+      setPayProcessing(true);
+      setTimeout(() => {
+        setPayProcessing(false);
+        showToast('💳 결제가 완료됐어요!');
+        nav('complete');
+      }, 2200);
+    } else {
+      showToast('💵 현금 결제가 완료됐어요!');
+      nav('complete');
+    }
+  }, [mode, tutStep, nav, showToast]);
+
+  // ── Home ──
+  const goHome = useCallback(() => {
+    setHintId(null);
+    setShowHelp(false);
+    setCart([]);
+    setTutStep(0);
+    setPayMethod(null);
+    nav('home');
+  }, [nav]);
+
+  // ── Retry (same mode) ──
+  const handleRetry = useCallback(() => {
+    startMode(mode || 'free');
+  }, [mode, startMode]);
+
+  const currentHint = hintId ? TUT.find(t => t.id === hintId) : null;
+
+  if (payProcessing) return (
+    <div id="app"><PayProcessingOverlay /></div>
+  );
+
+  return (
+    <div id="app">
+      <FeedbackToast msg={toast.msg} show={toast.show} />
+      <HintBubble
+        targetId={hintId}
+        message={currentHint ? currentHint.msg : null}
+        icon={currentHint ? currentHint.icon : null}
+      />
+      {showHelp && <HelpOverlay screen={screen} onClose={() => setShowHelp(false)} />}
+
+      {screen === 'home' && (
+        <HomeScreen onStart={startMode} />
+      )}
+      {screen === 'tutorial-intro' && (
+        <TutorialIntroScreen onBack={goHome} onStart={startTutorial} />
+      )}
+      {screen === 'menu' && (
+        <MenuScreen
+          mode={mode} cart={cart} tutStep={tutStep}
+          onSelectItem={handleSelectItem}
+          onGoCart={handleGoCart}
+          onBack={screen === 'menu' && mode !== null ? () => goHome() : null}
+          onHelp={() => setShowHelp(true)}
+          onCatClick={handleCatClick}
+        />
+      )}
+      {screen === 'item-detail' && selItem && (
+        <ItemDetailScreen
+          item={selItem} opts={selOpts} mode={mode} tutStep={tutStep}
+          onSetOpt={handleSetOpt}
+          onAddToCart={handleAddToCart}
+          onBack={() => nav('menu')}
+        />
+      )}
+      {screen === 'cart' && (
+        <CartScreen
+          cart={cart} mode={mode} tutStep={tutStep}
+          onRemove={handleRemove}
+          onBack={() => nav('menu')}
+          onPay={handleGoPayment}
+        />
+      )}
+      {screen === 'payment' && (
+        <PaymentScreen
+          cart={cart} mode={mode} tutStep={tutStep}
+          onBack={() => nav('cart')}
+          onConfirm={handleConfirmPayment}
+        />
+      )}
+      {screen === 'complete' && (
+        <CompleteScreen
+          cart={cart} orderNum={orderNum} payMethod={payMethod}
+          onHome={goHome}
+          onRetry={handleRetry}
+        />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
